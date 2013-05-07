@@ -1,0 +1,3 @@
+[submodule "pypropack"]
+	path = pypropack
+	url = git://github.com/jakevdp/pypropack.git
