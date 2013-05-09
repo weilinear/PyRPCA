@@ -26,10 +26,13 @@ def _monitor(A, E, D):
     print "|A|_*" , np.abs(diags).sum()
     print "|A|_0" , (np.abs(diags) > 1e-6).sum()
     print "|E|_1" , np.abs(E).sum()
-    print "|D-A-E|_F", ((D - A - E) ** 2).sum()
+    print "|D-A-E|_F", _fro(D - A - E)
     
 def _pos(A):
     return A * (A > 0)
+
+def _fro(A):
+    return np.sqrt((A * A).sum())
 
 def singular_value_thresholding(D, maxiter = 25000, lmbda = 1.0, tau = 1e4, delta = .9, verbose = 2):
     """
@@ -52,7 +55,7 @@ def singular_value_thresholding(D, maxiter = 25000, lmbda = 1.0, tau = 1e4, delt
         Y = Y + delta * M
         if verbose >= 2:
             _monitor(A, E, D)
-        if np.sqrt(((D-A-E)**2).sum())/np.sqrt((D**2).sum()) < EPSILON_PRIMAL:
+        if _fro(D-A-E)/_fro(D) < EPSILON_PRIMAL:
             if verbose >= 2:
                 print "Converged at iter %d"%iter
             break
@@ -222,7 +225,8 @@ def augmented_largrange_multiplier(D, lmbda, tol = 1e-7, maxiter = 25000, verbos
     Y = Y / dual_norm
     A_hat = np.zeros(Y.shape)
     E_hat = np.zeros(Y.shape)
-    dnorm = np.sqrt((D ** 2).sum())
+    # import pdb; pdb.set_trace()
+    dnorm = _fro(D)
     tolProj = 1e-6 * dnorm
     total_svd = 0
     mu = .5/norm_two
@@ -248,8 +252,8 @@ def augmented_largrange_multiplier(D, lmbda, tol = 1e-7, maxiter = 25000, verbos
                 sv = np.min([svp + round(.05 * n), n])
             temp_A = np.dot(np.dot(U[:,:svp], np.diag(S[:svp] - 1/mu)), V[:svp,:])
             if primal_iter % 10 == 0 and verbose >= 2:
-                print np.sqrt(((A_hat - temp_A)**2).sum())
-            if (np.sqrt(((A_hat - temp_A)**2).sum()) < tolProj and np.sqrt(((E_hat - temp_E)**2).sum()) < tolProj) or (inexact and primal_iter > 5):
+                print _fro(A_hat - temp_A)
+            if (_fro(A_hat - temp_A) < tolProj and _fro(E_hat - temp_E) < tolProj) or (inexact and primal_iter > 5):
                 primal_converged = True
                 if verbose >= 2:
                     print "Primal Converged at Iter %d"%(primal_iter)
