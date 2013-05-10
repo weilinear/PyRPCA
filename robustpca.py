@@ -21,12 +21,13 @@ except:
 # The problem solved is
 #                   min  : tau * (|A|_* + \lmbda |E|_1) + .5 * |(A,E)|_F^2
 #              subject to: A + E = D
-def _monitor(A, E, D):
+def _monitor(A, E, D, lmbda = 0.1):
     diags = svd(A, min(A.shape))[1]
     print "|A|_*" , np.abs(diags).sum()
     print "|A|_0" , (np.abs(diags) > 1e-6).sum()
-    print "|E|_1" , np.abs(E).sum()
+    print "|E|_1" , np.abs(D - A).sum()
     print "|D-A-E|_F", _fro(D - A - E)
+    return np.abs(diags).sum() + lmbda * np.abs(D - A).sum()
     
 def _pos(A):
     return A * (A > 0)
@@ -45,6 +46,7 @@ def singular_value_thresholding(D, maxiter = 25000, lmbda = 1.0, tau = 1e4, delt
     A = np.zeros(shape = _matshape)
     E = np.zeros(shape = _matshape)
     rankA = 0
+    obj = []
     for iter in range(maxiter):
         U, S, V = svd(Y, rankA+1)
         np.save("/tmp/Y.npy", Y)
@@ -54,12 +56,15 @@ def singular_value_thresholding(D, maxiter = 25000, lmbda = 1.0, tau = 1e4, delt
         rankA = (S > tau).sum()
         Y = Y + delta * M
         if verbose >= 2:
-            _monitor(A, E, D)
+            obj.append(_monitor(A, E, D))
         if _fro(D-A-E)/_fro(D) < EPSILON_PRIMAL:
             if verbose >= 2:
                 print "Converged at iter %d"%iter
             break
-    return A, E    
+    if verbose >= 2:
+        return A, E, obj
+    else:
+        return A, E    
 
 def accelerate_proximal_gradient(D, lmbda, maxiter = 25000, tol = 1e-7,
                                  lineSearchFlag = False,
@@ -68,6 +73,7 @@ def accelerate_proximal_gradient(D, lmbda, maxiter = 25000, tol = 1e-7,
     """
     Accelerated Proximal Gradient (Partial SVD Version)
     """
+    obj = []
     maxLineSearchIter = 200
     m, n = D.shape
 
@@ -94,7 +100,7 @@ def accelerate_proximal_gradient(D, lmbda, maxiter = 25000, tol = 1e-7,
     tau_k = tau_0 ;
 
     converged = False ;
-    numIter = 0. ;
+    iter = 0. ;
 
     sv = 5.;
 
@@ -172,7 +178,7 @@ def accelerate_proximal_gradient(D, lmbda, maxiter = 25000, tol = 1e-7,
         s1 = np.sqrt((Y_k_A**2).sum()+(Y_k_E**2).sum())
         s2 = np.sqrt((X_kp1_A**2).sum()+(X_kp1_E**2).sum());
         stoppingCriterion = s1 / (tau_k*max(1,s2));
-        if stoppingCriterion <= tol and numIter > 10:
+        if stoppingCriterion <= tol and iter > 10:
             converged = True ;
 
         if continuationFlag:
@@ -185,27 +191,18 @@ def accelerate_proximal_gradient(D, lmbda, maxiter = 25000, tol = 1e-7,
         X_k_A = X_kp1_A ;
         X_k_E = X_kp1_E ;
 
-        numIter = numIter + 1 ;
+        iter = iter + 1 ;
 
-        # if mod(numIter,DISPLAY_EVERY) == 0
-        #     disp(['Iteration ' num2str(numIter) '  rank(A) ' num2str(rankA) ...
-        #         ' ||E||_0 ' num2str(cardE) '  Stopping Criterion ' ...
-        #         num2str(stoppingCriterion)]) ;
-        # end
-
-        # if nargin > 8
-        #     fprintf(fid, '%s\n', ['Iteration ' num2str(numIter) '  rank(A)  ' num2str(rankA) ...
-        #         '  ||E||_0  ' num2str(cardE) '  Stopping Criterion   ' ...
-        #         num2str(stoppingCriterion)]) ;
-        # end
         if verbose >= 2:
-            _monitor(X_k_A, X_k_E, D)
+            obj.append(_monitor(X_k_A, X_k_E, D))
 
-        if (not converged) and numIter >= maxiter:
+        if (not converged) and iter >= maxiter:
             print 'Maximum iterations reached'
             converged = True ;
-    return X_k_A, X_k_E
-
+    if verbose >= 2:
+        return X_k_A, X_k_E, obj
+    else:
+        return X_k_A, X_k_E
 
 def dual_method():
     """
@@ -214,10 +211,11 @@ def dual_method():
     
     pass
 
-def augmented_largrange_multiplier(D, lmbda, tol = 1e-7, maxiter = 25000, verbose = 2, inexact = False):
+def augmented_largrange_multiplier(D, lmbda, tol = 1e-7, maxiter = 25000, verbose = 2, inexact = True):
     """
     Augmented Lagrange Multiplier
     """
+    obj = []
     Y = np.sign(D)
     norm_two = svd(Y, 1)[1]
     norm_inf = np.abs(Y).max() / lmbda
@@ -270,13 +268,85 @@ def augmented_largrange_multiplier(D, lmbda, tol = 1e-7, maxiter = 25000, verbos
             break
         else:
             if verbose >= 2:
-                _monitor(A_hat, E_hat, D)
+                obj.append(_monitor(A_hat, E_hat, D))
                 print "Iteration ", iter
                 print "#SVD" , total_svd
                 print "rank(A)", svp
                 print "|E|_0", (E_hat > 1e-6).sum()
-    return A_hat, E_hat
+    if verbose >= 2:
+        return A_hat, E_hat, obj
+    else:
+        return A_hat, E_hat
 
+def soft_thresh(X, kappa):
+    return np.maximum(X - kappa,0) - np.maximum(-X - kappa,0);
+
+def alternating_direction_method_of_multipliers(D, lmbda, rho = 1., maxiter = 25000, verbose = 2, tol = 1e-1):
+    obj = []
+    m, n = D.shape
+
+    # algorithm parameters and initial point
+
+    # L = np.zeros(D.shape);
+    L = D;
+    S = D - L;
+    W = np.ones(D.shape)/rho;
+
+    rhonext = rho;
+
+    for k in range(maxiter):
+
+        # 1. prox of the nuclear norm
+        U,Sig,V = svd(D-S-W);
+        Lnext = np.dot(np.dot(U, np.diag(soft_thresh(Sig, 1/rho))), V);
+
+        # 2. prox of the l1 norm
+        Snext = soft_thresh(D-Lnext-W, lmbda/rho);
+
+        # 3. residual running sum
+        Wnext = W + (Lnext + Snext - D);
+
+        # 4. evaluate primal and dual residuals
+        # r^{k+1} = L^{k+1} + S^{k+1} - M
+        # s^{k+1} = rho*(S^{k+1}-S^{k})
+        primal_resid = _fro(Lnext + Snext - D)
+        dual_resid = rho*_fro(Snext - S)
+
+        # 5. automatically vary the penalty parameter
+        if primal_resid > 10*dual_resid:
+            rhonext = 2*rho;
+            Wnext = Wnext/2;
+        elif dual_resid > 10*primal_resid:
+            rhonext = rho/2;
+            Wnext = 2*Wnext;
+        else:
+            rhonext = rho
+
+        # 6. update iterates
+        L = Lnext;
+        S = Snext;
+        W = Wnext;
+        rho = rhonext;
+
+        # stopping criterion
+        if primal_resid <= tol and dual_resid <= tol:
+            if verbose >= 2:
+                print 'Converged to tol=%e in %d iterations\n'%(tol, k)
+            break;
+        if verbose >= 2:
+            obj.append(_monitor(L, S, D))
+
+    if k == maxiter and verbose >= 2:
+        print 'Failed to converge in maxiter=%d iterations\n'%maxiter
+    if verbose >= 2:
+        return L, S, obj
+    else:
+        return L, S
+
+method = {"SVT" : singular_value_thresholding,
+          "ALM" : augmented_largrange_multiplier,
+          "ADMM" : alternating_direction_method_of_multipliers,
+          "APG": accelerate_proximal_gradient}
 
 class RobustPCA(BaseEstimator, TransformerMixin):
     """

@@ -18,14 +18,20 @@ if __name__ == "__main__":
     if not os.path.exists('./' + videoFname):
         print 'Video file not found, downloading'
         download_video_clip()
-    X = loadmat(videoFname)['X'].astype(np.double)
+    X = loadmat(videoFname)['X'].astype(np.double)/255.
     nclip = X.shape[1]
+    # lmbda = .01
     lmbda = .01
-
-    A, E = augmented_largrange_multiplier(X, lmbda = lmbda , maxiter = 20, inexact = True)
-    A = A.reshape(160, 130, X.shape[1]).swapaxes(0,1)
-    E = E.reshape(160, 130, X.shape[1]).swapaxes(0,1)
-    savemat("./background_subtraction.mat", {"A":A, "E":E})
+    # lmbdas = {'APG':.01,
+    #           'ALM':.01,
+    #           'ADMM':.01,
+    #           'SVT':.01}
+    for fname in method.keys():
+        m = method[fname]
+        A, E = m(X, lmbda = lmbda , maxiter = 100)
+        A = A.reshape(160, 130, X.shape[1]).swapaxes(0,1) * 255.
+        E = E.reshape(160, 130, X.shape[1]).swapaxes(0,1) * 255.
+        savemat("./%s_background_subtraction.mat"%(fname), {"A":A, "E":E})
     
 
     

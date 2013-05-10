@@ -26,14 +26,21 @@ print("done in %0.3fs." % (time() - t0))
 print("Fitting the NMF model on with n_samples=%d and n_features=%d..."
       % (n_samples, n_features))
 # import pdb; pdb.set_trace()
-A, E = augmented_largrange_multiplier(np.array(tfidf.todense().T), lmbda=.1, maxiter=10, inexact=True) # decomposition.NMF(n_components=n_topics).fit(tfidf)
+A, E = augmented_largrange_multiplier(np.array(tfidf.todense().T), lmbda=.1, maxiter=20, inexact=True) # decomposition.NMF(n_components=n_topics).fit(tfidf)
 print("done in %0.3fs." % (time() - t0))
 import pdb; pdb.set_trace()
 # Inverse the vectorizer vocabulary to be able
 feature_names = vectorizer.get_feature_names()
 
+original_text = open("original.txt","w")
+subtract_text = open("keywords.txt","w")
+
 for topic_idx, topic in enumerate(np.abs(E.T)):
     print("Topic #%d:" % topic_idx)
-    print(" ".join([feature_names[i]
+    subtract_text.write(" ".join([feature_names[i]
                     for i in topic.argsort()[:-n_top_words - 1:-1]  if topic[i] != 0]))
+    original_text.write(" ".join([feature_names[i]
+                    for i in xrange(n_features)  if tfidf[topic_idx, i] != 0]))
+    subtract_text.write("\n")
+    original_text.write("\n")
     print()
