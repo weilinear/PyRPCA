@@ -11,7 +11,7 @@ k_colors = ["r", "b", "y", "m", "c", "g", "#FFA500", "k"];
 k_markers = "o*dxs^vD";
 from pylab import gcf
 import pylab
-
+import os
 
 def mlabdefaults():
     matplotlib.rcParams['lines.linewidth'] = 1.5
@@ -148,30 +148,35 @@ def sample_number_experiment():
 
 
 def convergency_experiment():
+    result = {}
     for name in method.keys():
         result[name] = []
     maxiter = 100
     for sparse_ratio in [0.05, 0.1, 0.2]:
         for rank in [5, 10, 20]:
-            mat, A, E = synthesized_data(rank=rank, dim=30,
-                                         n_sample=1000, sparse_ratio=sparse_ratio, sparse_mag=10)
-            for name in method.keys():
-                print "\t %s"%(name)
-                time0 = time()
-                m = method[name]
-                A_, E_, obj = m(
-                    mat.T, lmbda=.1, verbose=2, maxiter=maxiter)
-                escaped = time() - time0
-                print "\t escaped %f"%(escaped)
-                result[name] = obj
-            result['Optimal'] = np.ones(maxiter) * rp._monitor(A, E, A+E)
-            cP.dump({'x': np.arange(maxiter), 'results': result}, open(figurename("iteration_exp_rank%d_sparse%0.2f.pk"%(rank, sparse_ratio)), 'w'), protocol=-1)
-            generate_plot(np.arange(maxiter), results=result, xlabel='Iteration', ylabel='Objective Value', keys=None, fname=figurename("iteration_exp_rank%d_sparse%0.2f.png"%(rank, sparse_ratio)), me=3, title="Rank = %d, Sparse Error Ratio = %0.2f"%(rank, sparse_ratio))
+            cachename = figurename("iteration_exp_rank%d_sparse%0.2f.pk"%(rank, sparse_ratio));
+            if not os.path.exists(cachename):
+                mat, A, E = synthesized_data(rank=rank, dim=30,
+                                             n_sample=1000, sparse_ratio=sparse_ratio, sparse_mag=10)
+                for name in method.keys():
+                    print "\t %s"%(name)
+                    time0 = time()
+                    m = method[name]
+                    A_, E_, obj = m(
+                        mat.T, lmbda=.1, verbose=2, maxiter=maxiter)
+                    escaped = time() - time0
+                    print "\t escaped %f"%(escaped)
+                    result[name] = obj
+                result['Optimal'] = np.ones(maxiter) * rp._monitor(A, E, A+E)
+                cP.dump({'x': np.arange(maxiter), 'results': result}, open(cachename, 'w'), protocol=-1)
+            else:
+                tmp = cP.load(open(cachename, 'rb'))
+                result = tmp['results']
+            generate_plot(np.arange(maxiter), results=result, xlabel='Iteration', ylabel='Objective Value', keys=None, fname=figurename("iteration_exp_rank%d_sparse%0.2f.eps"%(rank, sparse_ratio)), me=3, title="Rank = %d, Sparse Error Ratio = %0.2f"%(rank, sparse_ratio))
 
 
 if __name__ == "__main__":
-    result = {}
-    rank_experiment()
-    sparse_ratio_experiment()
-    sample_number_experiment()
-    # convergency_experiment()
+    # rank_experiment()
+    # sparse_ratio_experiment()
+    # sample_number_experiment()
+    convergency_experiment()

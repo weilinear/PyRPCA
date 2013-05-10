@@ -7,9 +7,13 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 import numpy as np
 from matplotlib import cm
+import matplotlib
 from robustpca import method
+from plot_benchmark import mlabdefaults
 
 if __name__ == "__main__":
+    mlabdefaults()
+    matplotlib.rcParams['savefig.dpi'] = 200
     files = []
     cache_path = '/tmp/robust_pca_tmp'
     if not os.path.exists(cache_path):
@@ -32,6 +36,7 @@ if __name__ == "__main__":
                                      mat['E'][:, :, i], org[:, :, i])), cm.gray)
                 fname_ = '%s/%s_tmp/_tmp%03d.png'%(cache_path, fname, i)
                 print 'Saving frame', fname_
+                fig.tight_layout()
                 fig.savefig(fname_, bbox_inches="tight")
                 files.append(fname_)
         print 'Making movie animation.mpg - this make take a while'
