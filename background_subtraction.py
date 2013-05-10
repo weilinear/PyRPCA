@@ -49,7 +49,7 @@ if __name__ == "__main__":
     ################################# Robust PCA ############################
     for fname in method.keys():
         m = method[fname]
-        A, E = m(X, lmbda=lmbda, maxiter=100)
+        A, E = m(X, lmbda=lmbda, maxiter=100, verbose=0)
         A = A.reshape(160, 130, X.shape[1]).swapaxes(0, 1) * 255.
         E = E.reshape(160, 130, X.shape[1]).swapaxes(0, 1) * 255.
         savemat("./%s_background_subtraction.mat"%(fname), {"A": A, "E": E})
