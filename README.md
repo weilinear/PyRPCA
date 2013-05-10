@@ -7,8 +7,9 @@ Requirement
 ===========
  * scipy
  * numpy
- * propack(optional)
+ * pypropack(optional)
  * scikit-learn
+ * nosetest
 
 Scripts
 =======
@@ -19,6 +20,6 @@ Scripts
 
 Aknowledgement
 ==============
-Special thanks for the follow two resources and their authors.
+Special thanks for the following two resources and their authors.
  * http://perception.csl.illinois.edu/matrix-rank/sample_code.html
  * www.stanford.edu/~peleato/math301_slides.pdf‎
