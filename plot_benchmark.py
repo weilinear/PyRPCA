@@ -176,7 +176,7 @@ def convergency_experiment():
 
 
 if __name__ == "__main__":
-    # rank_experiment()
-    # sparse_ratio_experiment()
-    # sample_number_experiment()
+    rank_experiment()
+    sparse_ratio_experiment()
+    sample_number_experiment()
     convergency_experiment()

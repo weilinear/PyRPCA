@@ -28,8 +28,6 @@ print("Fitting the NMF model on with n_samples=%d and n_features=%d..."
 # import pdb; pdb.set_trace()
 A, E = augmented_largrange_multiplier(np.array(tfidf.todense().T), lmbda=.1, maxiter=20, inexact=True)  # decomposition.NMF(n_components=n_topics).fit(tfidf)
 print("done in %0.3fs." % (time() - t0))
-import pdb
-pdb.set_trace()
 # Inverse the vectorizer vocabulary to be able
 feature_names = vectorizer.get_feature_names()
 
